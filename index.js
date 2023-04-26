@@ -1,69 +1,52 @@
+require("./utils.js");
+require('dotenv').config();
 const express = require('express');
+const session = require('express-session');
+const MongoStore = require('connect-mongo');
+const bcrypt = require('bcrypt');
+const Joi = require("joi");
+const saltRounds = 12;
+
+const port = process.env.PORT || 3020;
 
 const app = express();
+const images = ["image1.webp", "image2.gif", "image3.webp"];
 
-const port = process.env.port || 3020;
+const expireTime = 1000 * 60 * 60; // 1 hour
+
+const mongodb_host = process.env.MONGODB_HOST;
+const mongodb_user = process.env.MONGODB_USER;
+const mongodb_password = process.env.MONGODB_PASSWORD;
+const mongodb_database = process.env.MONGODB_DATABASE;
+const mongodb_session_secret = process.env.MONGODB_SESSION_SECRET;
+const node_session_secret = process.env.NODE_SESSION_SECRET;
+
+var {database} = include('databaseConnection');
+
+const userCollection = database.db(mongodb_database).collection('users');
+
+app.use(express.urlencoded({extended: false}));
+app.use(express.static(__dirname + "/public"));
+
+var mongoStore = MongoStore.create({
+	mongoUrl: `mongodb+srv://${mongodb_user}:${mongodb_password}@${mongodb_host}/sessions`,
+	crypto: {
+		secret: mongodb_session_secret
+	}
+});
+
+app.use(session({
+    secret: node_session_secret,
+	store: mongoStore, 
+	saveUninitialized: false, 
+	resave: true
+}));
 
 app.get('/', (req, res) => {
     var html = `
-    <form action='/signingup' method='post'>
-        <div class='container sub-containter'>
-            <button class="button" id="signIn">
-                LOG IN
-            </button>
-            <button class="button" id="signUp">
-                SIGN UP
-            </button>
-        </div>
-    <form>
-    <style>
-    .container {
-        font-family: 'specimen', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-        display: block;
-        margin: 0 auto;
-        margin-top: 200px;
-        width: 300px;
-        display: block;
-    }
-
-    .button {
-        position: relative;
-        background: repeating-radial-gradient(ellipse farthest-corner at top left, #85DAFF 0%, #AC9CFF 100%);
-        -webkit-box-sizing: border-box;
-        -moz-box-sizing: border-box;
-        box-sizing: border-box;
-        text-align: center;
-    }
-    
-    .button {
-        width: 300px;
-        font-size: 16px;
-        font-weight: 600;
-        color: #fff;
-        cursor: pointer;
-        margin: 5px;
-        height: 55px;
-        right: 50px;
-        text-align:center;
-        border: none;
-        background-size: 300% 100%;
-        border-radius: 50px;
-        moz-transition: all .4s ease-in-out;
-        -o-transition: all .4s ease-in-out;
-        -webkit-transition: all .4s ease-in-out;
-        transition: all .4s ease-in-out;
-    }
-    
-    .button:hover {
-        background-position: 100% 0;
-        moz-transition: all .4s ease-in-out;
-        -o-transition: all .4s ease-in-out;
-        -webkit-transition: all .4s ease-in-out;
-        transition: all .4s ease-in-out;
-        transition: transform 0.5s ease;
-        transform: scale(1.05);
-    }
-    <style>
+        <h1>Welcome!<h1>
+        <a href='/login'>Log In<a><br>
+        <a href='/createUser'>Sign Up<a>
     `;
     res.send(html);
 });
@@ -73,123 +56,124 @@ app.get('/login', (req, res) => {
     <form action='/loggingin' method='post'>
         <div class="container">
             <h2 class="main-text">
-                Log in
+                Log In
             </h2>
-            <div class="sub-container">
-                <div>
-                    <input id="email" type="email" placeholder="Email" required="required">
-                </div>
-                <div>
-                    <input id="password" type="password" placeholder="password" required="required">
-                </div>
-                <div>
-                    <button class="button" id="signIn">
-                        LOG IN
-                    </button>
-                </div>
-                <a href="signup.html">
-                    <div>
-                        <button class="button">
-                            CREATE NEW ACCOUNT
-                        </button>
-                    </div>
-                </a>
-            </div>
+            <input name="username" type="text" placeholder="username" required="required"><br>
+            <input name="password" type="password" placeholder="password" required="required"><br>
+            <button class="button" id="signIn">
+            LOG IN
+            </button>
         </div>
     <form>
-    <style>
-    .container {
-        font-family: 'specimen', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-        display: block;
-        margin: 0 auto;
-        margin-top: 200px;
-        width: 300px;
-    }
-    
-    #icon {
-        height: 100px;
-        width: auto;
-        margin-left: 100px;
-    }
-    
-    .sub-container {
-        display: block;
-        margin-left: 50px;
-    }
-    
-    input {
-        position: relative;
-        border-collapse: unset;
-        border: none;
-        height: 30px;
-        width: 300px;
-        right: 50px;
-    }
-    
-    input:focus {
-        outline: none;
-    }
-    
-    #password {
-        margin-bottom: 10px;
-    }
-    
-    #email {
-        border-bottom: 1px grey solid;
-    }
-    
-    .main-text {
-        position: relative;
-        font-size: 29px;
-        left: 100px;
-        background: #85DAFF;
-        background: repeating-radial-gradient(ellipse farthest-corner at center center, #85DAFF 0%, #AC9CFF 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-    }
-    
-    .button {
-        position: relative;
-        background: repeating-radial-gradient(ellipse farthest-corner at top left, #85DAFF 0%, #AC9CFF 100%);
-        -webkit-box-sizing: border-box;
-        -moz-box-sizing: border-box;
-        box-sizing: border-box;
-        text-align: center;
-    }
-    
-    .button {
-        width: 300px;
-        font-size: 16px;
-        font-weight: 600;
-        color: #fff;
-        cursor: pointer;
-        margin: 5px;
-        height: 55px;
-        right: 50px;
-        text-align:center;
-        border: none;
-        background-size: 300% 100%;
-        border-radius: 50px;
-        moz-transition: all .4s ease-in-out;
-        -o-transition: all .4s ease-in-out;
-        -webkit-transition: all .4s ease-in-out;
-        transition: all .4s ease-in-out;
-    }
-    
-    .button:hover {
-        background-position: 100% 0;
-        moz-transition: all .4s ease-in-out;
-        -o-transition: all .4s ease-in-out;
-        -webkit-transition: all .4s ease-in-out;
-        transition: all .4s ease-in-out;
-        transition: transform 0.5s ease;
-        transform: scale(1.05);
-    }
-    <style>
     `;
     res.send(html);
 });
 
+app.get('/createUser', (req, res) => {
+    var html = `
+    <form action='/submitUser' method='post'>
+            <h2 class="main-text">
+                Sign Up
+            </h2>
+            <input name="username" type="text" placeholder="username" required="required"><br>
+            <input name="email" id="email" type="email" placeholder="Email" required="required"><br>
+            <input name="password" id="password" type="password" placeholder="password" required="required"><br>
+            <button class="button" id="signIn">
+                Sign Up
+            </button>
+    <form>
+    `;
+    res.send(html);
+});
+
+app.post('/submitUser', async (req, res) => {
+    let username = req.body.username;
+    let password = req.body.password;
+
+    const schema = Joi.object(
+		{
+			username: Joi.string().alphanum().max(20).required(),
+			password: Joi.string().max(20).required()
+		});
+	
+	const validationResult = schema.validate({username, password});
+
+    if (validationResult.error != null) {
+        console.log("Invalid Email or Password!");
+        res.redirect('/createUser');
+        return;
+    }
+
+    let hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    await userCollection.insertOne({
+        username: username,
+        password: hashedPassword
+    })
+    res.redirect('/member');
+});
+
+app.post('/loggingin', async (req, res) => {
+    var username = req.body.username;
+    var password = req.body.password;
+
+	const schema = Joi.string().max(20).required();
+	const validationResult = schema.validate(username);
+	if (validationResult.error != null) {
+	   console.log(validationResult.error);
+	   res.redirect("/login");
+	   return;
+	}
+
+    const result = await userCollection.find({username: username}).project({username: 1, password: 1, _id: 1}).toArray();
+
+	console.log(result);
+	if (result.length != 1) {
+		console.log("user not found");
+		res.redirect("/login");
+		return;
+	}
+	if (await bcrypt.compare(password, result[0].password)) {
+		req.session.authenticated = true;
+		req.session.username = username;
+		req.session.cookie.maxAge = expireTime;
+        
+		res.redirect('/member');
+		return;
+	}
+	else {
+		res.redirect("/login");
+		return;
+	}
+});
+
+app.get('/member', (req, res) => {
+    if (req.session.username == null) {
+        res.redirect('/login');
+        return;
+    }
+    const randomImage = images[Math.floor(Math.random() * images.length)];
+    const imagePath = randomImage;
+    const html = `
+    <form action='/' method='post'>
+    <h1>Welcome, ${req.session.username}!<h1>
+    <img src=${imagePath}>
+    <a href='/logout'>Log Out<a>
+    <form>
+    `;
+    res.send(html);
+});
+
+app.get('/logout', (req,res) => {
+	req.session.destroy();
+    res.redirect('/');
+});
+
+app.get("*", (req,res) => {
+	res.status(404);
+	res.send("Page not found - 404");
+})
+
 app.listen(port, () => {
-    console.log("hello");
+    console.log("succeed!");
 });
