@@ -22,7 +22,6 @@ const mongodb_session_secret = process.env.MONGODB_SESSION_SECRET;
 const node_session_secret = process.env.NODE_SESSION_SECRET;
 
 var {database} = include('databaseConnection');
-
 const userCollection = database.db(mongodb_database).collection('users');
 
 app.use(express.urlencoded({extended: false}));
@@ -30,17 +29,23 @@ app.use(express.static(__dirname + "/public"));
 
 var mongoStore = MongoStore.create({
 	mongoUrl: `mongodb+srv://${mongodb_user}:${mongodb_password}@${mongodb_host}/sessions`,
-	crypto: {
+	crypto: 
+    {
 		secret: mongodb_session_secret
 	}
 });
 
-app.use(session({
-    secret: node_session_secret,
-	store: mongoStore, 
-	saveUninitialized: false, 
-	resave: true
-}));
+app.use(
+    session
+    (
+        {
+        secret: node_session_secret,
+	    store: mongoStore, 
+	    saveUninitialized: false, 
+	    resave: true
+        }
+    )
+);
 
 app.get('/', (req, res) => {
     var html = `
@@ -49,6 +54,31 @@ app.get('/', (req, res) => {
         <a href='/createUser'>Sign Up<a>
     `;
     res.send(html);
+});
+
+app.get('/nosql-injection', async (req,res) => {
+	var username = req.query.user;
+
+	if (!username) {
+		res.send(`<h3>no user provided!</h3>`);
+		return;
+	}
+	console.log("user: "+username);
+
+	const schema = Joi.string().max(20).required();
+	const validationResult = schema.validate(username);
+    
+	if (validationResult.error != null) {
+	   console.log(validationResult.error);
+	   res.send("<h1 style='color:red;'>A NoSQL injection is detacted :(</h1>");
+	   return;
+	}	
+
+	const result = await userCollection.find({username: username}).project({username: 1, password: 1, _id: 1}).toArray();
+
+	console.log(result);
+
+    res.send(`<h1>Hello ${username}</h1>`);
 });
 
 app.get('/login', (req, res) => {
@@ -110,6 +140,10 @@ app.post('/submitUser', async (req, res) => {
         username: username,
         password: hashedPassword
     })
+
+    // to make req.session.username to exist
+    req.session.username = username;
+
     res.redirect('/member');
 });
 
@@ -130,24 +164,38 @@ app.post('/loggingin', async (req, res) => {
 	console.log(result);
 	if (result.length != 1) {
 		console.log("user not found");
-		res.redirect("/login");
+		res.redirect("/nosql-injection?user[$ne]=name");
 		return;
 	}
 	if (await bcrypt.compare(password, result[0].password)) {
 		req.session.authenticated = true;
 		req.session.username = username;
 		req.session.cookie.maxAge = expireTime;
-        
-		res.redirect('/member');
+        res.redirect('/member');
 		return;
 	}
 	else {
-		res.redirect("/login");
+        res.send(`
+        <form action='/loggingin' method='post'>
+        <div class="container">
+            <h2 class="main-text">
+                Log In
+            </h2>
+            <input name="username" type="text" placeholder="username" required="required"><br>
+            <input name="password" type="password" placeholder="password" required="required"><br>
+            <button class="button" id="signIn">
+            LOG IN
+            </button>
+            <div>Incorrect password</div>
+        </div>
+    <form>
+    `);
 		return;
 	}
 });
 
 app.get('/member', (req, res) => {
+    
     if (req.session.username == null) {
         res.redirect('/login');
         return;
