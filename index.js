@@ -118,15 +118,17 @@ app.get('/createUser', (req, res) => {
 
 app.post('/submitUser', async (req, res) => {
     let username = req.body.username;
+    let email = req.body.email;
     let password = req.body.password;
 
     const schema = Joi.object(
 		{
 			username: Joi.string().alphanum().max(20).required(),
+            email: Joi.string().email().required(),
 			password: Joi.string().max(20).required()
 		});
 	
-	const validationResult = schema.validate({username, password});
+	const validationResult = schema.validate({username, email, password});
 
     if (validationResult.error != null) {
         console.log("Invalid Email or Password!");
@@ -138,6 +140,7 @@ app.post('/submitUser', async (req, res) => {
 
     await userCollection.insertOne({
         username: username,
+        email: email,
         password: hashedPassword
     })
 
