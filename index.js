@@ -27,7 +27,7 @@ const userCollection = database.db(mongodb_database).collection('users');
 app.use(express.urlencoded({extended: false}));
 app.use(express.static(__dirname + "/public"));
 
-// creating a session collection using MongoDB database
+// creating a new instance of a session store that will be used to store user session data in a MongoDB collection.
 var mongoStore = MongoStore.create({
 	mongoUrl: `mongodb+srv://${mongodb_user}:${mongodb_password}@${mongodb_host}/sessions`,
 	crypto: 
@@ -73,7 +73,7 @@ app.get('/nosql-injection', async (req,res) => {
 	   console.log(validationResult.error);
 	   res.send("<h1 style='color:red;'>A NoSQL injection is detacted :(</h1>");
 	   return;
-	}	
+	}
 
 	const result = await userCollection.find({username: username}).project({username: 1, password: 1, _id: 1}).toArray();
 
@@ -168,7 +168,7 @@ app.post('/loggingin', async (req, res) => {
 	console.log(result);
 	if (result.length != 1) {
 		console.log("user not found");
-		res.redirect("/nosql-injection?user[$ne]=name");
+		res.redirect("/login");
 		return;
 	}
 	if (await bcrypt.compare(password, result[0].password)) {
