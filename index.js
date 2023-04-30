@@ -12,7 +12,7 @@ const port = process.env.PORT || 3020;
 const app = express();
 const images = ["image1.webp", "image2.gif", "image3.webp"];
 
-const expireTime = 1000 * 60 * 60; // 1 hour
+const expireTime = 1000 * 60 * 60; // 1 hour (1s = 1000ms | 1000ms * 60 * 60 = 1 hour)
 
 const mongodb_host = process.env.MONGODB_HOST;
 const mongodb_user = process.env.MONGODB_USER;
@@ -27,6 +27,7 @@ const userCollection = database.db(mongodb_database).collection('users');
 app.use(express.urlencoded({extended: false}));
 app.use(express.static(__dirname + "/public"));
 
+// creating a session collection using MongoDB database
 var mongoStore = MongoStore.create({
 	mongoUrl: `mongodb+srv://${mongodb_user}:${mongodb_password}@${mongodb_host}/sessions`,
 	crypto: 
@@ -49,7 +50,7 @@ app.use(
 
 app.get('/', (req, res) => {
     var html = `
-        <h1>Welcome!<h1>
+        <h1>Please either sign up or login!<h1>
         <a href='/login'>Log In<a><br>
         <a href='/createUser'>Sign Up<a>
     `;
